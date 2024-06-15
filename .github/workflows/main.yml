@@ -7,7 +7,7 @@ jobs:
     steps:
       - name: Hello world action step
         id: hello
-        uses: docker-test/hello-world-docker-action
+        uses: AbdullahMubeenAnwar/docker-test/hello-world-docker-action@main
         with:
           who-to-greet: 'Abdullah'
       # Use the output from the `hello` step
