@@ -1,7 +1,7 @@
-#Download base image ubuntu 18.04
-FROM ubuntu:18.04
+# Use the latest Ubuntu base image
+FROM ubuntu:latest
 
-
+# Install basic utilities and dependencies
 RUN apt-get update && apt-get install -y \
     tar \
     wget \
@@ -18,47 +18,56 @@ RUN apt-get update && apt-get install -y \
     unzip \
     pkg-config \
     software-properties-common \
-    graphviz
+    graphviz \
+    curl
 
-
-# Install OpenJDK-8
+# Install OpenJDK (latest version)
 RUN apt-get update && \
-    apt-get install -y openjdk-8-jdk && \
+    apt-get install -y openjdk-11-jdk && \
     apt-get install -y ant && \
     apt-get clean;
 
 # Fix certificate issues
 RUN apt-get update && \
-    apt-get install ca-certificates-java && \
+    apt-get install -y ca-certificates-java && \
     apt-get clean && \
     update-ca-certificates -f;
-# Setup JAVA_HOME -- useful for docker commandline
-ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/
-RUN export JAVA_HOME
 
-RUN echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/" >> ~/.bashrc
+# Setup JAVA_HOME
+ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
+RUN echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64/" >> ~/.bashrc
 
+# Clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-
+# Add deadsnakes PPA for the latest Python versions
 RUN apt-get update
 RUN apt-get install -y software-properties-common
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get install -y python3.8 python3-pip
+RUN apt-get update
+RUN apt-get install -y python3.10 python3.10-distutils
 
-ENV PYSPARK_PYTHON=python3.8
-ENV PYSPARK_DRIVER_PYTHON=python3.8
+# Set Python 3.10 as the default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+RUN update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.10 1
 
-RUN python3.8 -m pip install --upgrade pip
-# You only need pyspark and spark-nlp paclages to use Spark NLP
-# The rest of the PyPI packages are here as examples
-RUN python3.8 -m pip install numpy pandas 
-RUN python3.8 -m pip  install  pyspark==3.3.0 spark-nlp==5.3.3 
+# Upgrade pip and install required Python packages
+COPY requirements.txt .
+RUN pip3 install --upgrade pip
+RUN pip3 install -r requirements.txt
 
+# Set environment variables for PySpark
+ENV PYSPARK_PYTHON=python3.10
+ENV PYSPARK_DRIVER_PYTHON=python3.10
 
-USER root
+# Clean up
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Set the working directory
+WORKDIR /app
+
+# Copy the application code
 COPY . .
 
-
-CMD ["python3.8", "test_sparknlp.py"]
+# Set ENTRYPOINT to run the Streamlit app
+ENTRYPOINT ["streamlit", "run", "app.py"]
