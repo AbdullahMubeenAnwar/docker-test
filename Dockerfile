@@ -1,7 +1,7 @@
-# Use the latest Ubuntu base image
-FROM ubuntu:latest
+#Download base image ubuntu 18.04
+FROM ubuntu:18.04
 
-# Install basic utilities and dependencies
+
 RUN apt-get update && apt-get install -y \
     tar \
     wget \
@@ -18,56 +18,42 @@ RUN apt-get update && apt-get install -y \
     unzip \
     pkg-config \
     software-properties-common \
-    graphviz \
-    curl
+    graphviz
 
-# Install OpenJDK (latest version)
+
+# Install OpenJDK-8
 RUN apt-get update && \
-    apt-get install -y openjdk-11-jdk && \
+    apt-get install -y openjdk-8-jdk && \
     apt-get install -y ant && \
     apt-get clean;
 
 # Fix certificate issues
 RUN apt-get update && \
-    apt-get install -y ca-certificates-java && \
+    apt-get install ca-certificates-java && \
     apt-get clean && \
     update-ca-certificates -f;
+# Setup JAVA_HOME -- useful for docker commandline
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/
+RUN export JAVA_HOME
 
-# Setup JAVA_HOME
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64/
-RUN echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64/" >> ~/.bashrc
+RUN echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/" >> ~/.bashrc
 
-# Clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Add deadsnakes PPA for the latest Python versions
 RUN apt-get update
 RUN apt-get install -y software-properties-common
 RUN add-apt-repository ppa:deadsnakes/ppa
-RUN apt-get update
-RUN apt-get install -y python3.10 python3.10-distutils
+RUN apt-get install -y python3.8 python3-pip
 
-# Set Python 3.10 as the default
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
-RUN update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.10 1
+ENV PYSPARK_PYTHON=python3.8
+ENV PYSPARK_DRIVER_PYTHON=python3.8
 
-# Upgrade pip and install required Python packages
+RUN python3.8 -m pip install --upgrade pip
 COPY requirements.txt .
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
+RUN python3.8 -m pip install -r requirements.txt
 
-# Set environment variables for PySpark
-ENV PYSPARK_PYTHON=python3.10
-ENV PYSPARK_DRIVER_PYTHON=python3.10
+USER root
 
-# Clean up
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Set the working directory
-WORKDIR /app
-
-# Copy the application code
 COPY . .
 
-# Set ENTRYPOINT to run the Streamlit app
 ENTRYPOINT ["streamlit", "run", "app.py"]
